@@ -1,6 +1,6 @@
 const { Writable } = require('stream');
 const { Readable } = require('stream');
-const { EOL } = require("os");
+const { EOL } = require('os');
 
 class FileReadable extends Readable {
     constructor(opt) {
@@ -8,6 +8,7 @@ class FileReadable extends Readable {
     }
   
     _read() {
+        console.log('Called _read on FileReadable');
     }
 }
 
@@ -43,11 +44,7 @@ class Parser extends Writable {
         debugger;
 
         console.log('in _write method now. size:', chunk.length);
-        // console.log(chunk);
-        // console.log('chunk as string:');
-        // console.log(chunk.toString());
-        // console.log('end write.');
-
+        
         const chunkHeaderStart = chunk.indexOf(this.partsDividerBuf);
         if (chunkHeaderStart === 0) {
             console.log(chunkHeaderStart);
@@ -65,19 +62,23 @@ class Parser extends Writable {
                 console.log(chunkHeader.toString());
                 console.log(chunkData.toString());
 
+                console.log('pushing to file readable (1)');
                 this.file.push(chunkData);
             }
             else {
                 const chunkData = chunk.slice(chunkHeaderEnd + EOL.length + EOL.length, chunk.length);
+                console.log('pushing to file readable (2)');
                 this.file.push(chunkData);
             }
         }
         else if (chunkHeaderStart > 0) {
             const chunkTail = chunk.slice(0, chunkHeaderStart);
             const chunkData = chunkTail.slice(0, chunkTail.lastIndexOf(EOL));
+            console.log('pushing to file readable (3)');
             this.file.push(chunkData);
         }
         else {
+            console.log('pushing to file readable (4)');
             this.file.push(chunk);
         }
         

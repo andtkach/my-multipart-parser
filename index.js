@@ -5,7 +5,7 @@ var fs = require('fs');
 createServer((req, res) => {
     if (req.method === 'POST') {
         console.log('POST request');
-       var debugWriteStream = fs.createWriteStream('c:\\temp\\debug.txt');
+        var debugWriteStream = fs.createWriteStream('./uploads/debug.file');
         const parser = new Parser({ headers: req.headers });
         console.log(req.headers);
         parser.on('file', (fieldname, file, filename, contentType) => {
@@ -17,8 +17,8 @@ createServer((req, res) => {
             
             debugWriteStream.on('finish', function () {
                 debugger;
-                console.log('FINISHED to debug.txt');
-              });
+                console.log('FINISHED to debug.file');
+            });
               
              
             file.on('data', (data) => {
