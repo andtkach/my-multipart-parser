@@ -1,4 +1,4 @@
 # my-multipart-parser
 
-1. It only works with small files where size is less then 1 chunk of data 65536
-2. It does not work with big files
+1. It is possible to upload small and big binary files. Files are saved to 'uploads' folder
+2. It is possible to upload from url encoded data
