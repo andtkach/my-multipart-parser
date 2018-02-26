@@ -41,11 +41,6 @@ class Parser extends Writable {
     }
 
     _write(chunk, encoding, callback) {
-        //debugger;
-        //console.log('in _write method now. size:', chunk.length);
-        
-        //console.log(this.headers);
-        //console.log(this.headers['content-type']);
         if (this.headers['content-type'] && this.headers['content-type'].toLowerCase().startsWith('multipart/form-data;')) {
 
             if (!this.partsDividerStr) {
@@ -54,16 +49,9 @@ class Parser extends Writable {
 
             const chunkHeaderStart = chunk.indexOf(this.partsDividerBuf);
             if (chunkHeaderStart === 0) {
-            //console.log(chunkHeaderStart);
-
                 const chunkHeaderEnd = chunk.indexOf(EOL + EOL);
-                if (chunkHeaderEnd > 0) {
-                //console.log(chunkHeaderEnd);
-                }
-
                 const chunkHeader = chunk.slice(chunkHeaderStart, chunkHeaderEnd);
                 const headerText = chunkHeader.toString();
-                //console.log(headerText);
                 this.parseChunkHeaders(headerText);
             
                 const chunkTail = chunk.slice(chunkHeaderEnd + EOL.length + EOL.length, chunk.lastIndexOf(this.partsDividerBuf));
@@ -85,7 +73,6 @@ class Parser extends Writable {
                 this.file.push(chunk);
             }
         
-            //debugger;
             if (!this.isFileEventEmitted) {
                 let fieldname1 = 'This field is really not used here.';
                 this.emit('file', fieldname1, this.file, this.fileName, this.contentType);
@@ -94,7 +81,6 @@ class Parser extends Writable {
             }
 
         } else if (this.headers['content-type'] && this.headers['content-type'].toLowerCase().startsWith('application/x-www-form-urlencoded')) { 
-            //debugger;
             const content = chunk.toString().split('&');
             content.forEach(c => {
                 const field = c.split('=');
@@ -110,18 +96,13 @@ class Parser extends Writable {
     }
 
     _final(callback) {
-        //debugger;
-        //this.file.push(null);
         callback();
     }
 
     parseChunkHeaders(data) {
-        //console.log('Parsing headers...');
-        //debugger;
         let dataArray = data.split(EOL);
         
         dataArray.forEach(line => {
-            //console.log(line);
             const oneHeader = line.split(':');
             if (oneHeader.length === 2) {
                 if (oneHeader[0].toLowerCase() === 'content-type') {
