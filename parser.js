@@ -8,7 +8,7 @@ class FileReadable extends Readable {
     }
   
     _read() {
-        console.log('Called _read on FileReadable');
+        //console.log('Called _read on FileReadable');
     }
 }
 
@@ -17,9 +17,14 @@ class Parser extends Writable {
         super(options);
         this.headers = options.headers;
         this.file = new FileReadable(); 
+        this.file.pause();
         this.partsDividerStr = '';
         this.partsDividerBuf = undefined;
         this.setPartsDivider();        
+        this.isFileEventEmitted = false;
+
+        this.fileName = '';
+        this.contentType = '';
     }
 
     setPartsDivider() {
@@ -36,76 +41,104 @@ class Parser extends Writable {
     }
 
     _write(chunk, encoding, callback) {
-
-        if (!this.partsDividerStr) {
-            callback();
-        }
-
-        debugger;
-
-        console.log('in _write method now. size:', chunk.length);
+        //debugger;
+        //console.log('in _write method now. size:', chunk.length);
         
-        const chunkHeaderStart = chunk.indexOf(this.partsDividerBuf);
-        if (chunkHeaderStart === 0) {
-            console.log(chunkHeaderStart);
+        //console.log(this.headers);
+        //console.log(this.headers['content-type']);
+        if (this.headers['content-type'] && this.headers['content-type'].toLowerCase().startsWith('multipart/form-data;')) {
 
-            const chunkHeaderEnd = chunk.indexOf(EOL + EOL);
-            if (chunkHeaderEnd > 0) {
-                console.log(chunkHeaderEnd);
+            if (!this.partsDividerStr) {
+                callback();
             }
 
-            const chunkHeader = chunk.slice(chunkHeaderStart, chunkHeaderEnd);
-            const chunkTail = chunk.slice(chunkHeaderEnd + EOL.length + EOL.length, chunk.lastIndexOf(this.partsDividerBuf));
-            if (chunkTail.length > 0) {
-                const chunkData = chunkTail.slice(0, chunkTail.lastIndexOf(EOL));
-            
-                console.log(chunkHeader.toString());
-                console.log(chunkData.toString());
+            const chunkHeaderStart = chunk.indexOf(this.partsDividerBuf);
+            if (chunkHeaderStart === 0) {
+            //console.log(chunkHeaderStart);
 
-                console.log('pushing to file readable (1)');
+                const chunkHeaderEnd = chunk.indexOf(EOL + EOL);
+                if (chunkHeaderEnd > 0) {
+                //console.log(chunkHeaderEnd);
+                }
+
+                const chunkHeader = chunk.slice(chunkHeaderStart, chunkHeaderEnd);
+                const headerText = chunkHeader.toString();
+                //console.log(headerText);
+                this.parseChunkHeaders(headerText);
+            
+                const chunkTail = chunk.slice(chunkHeaderEnd + EOL.length + EOL.length, chunk.lastIndexOf(this.partsDividerBuf));
+                if (chunkTail.length > 0) {
+                    const chunkData = chunkTail.slice(0, chunkTail.lastIndexOf(EOL));
+                    this.file.push(chunkData);
+                }
+                else {
+                    const chunkData = chunk.slice(chunkHeaderEnd + EOL.length + EOL.length, chunk.length);
+                    this.file.push(chunkData);
+                }
+            }
+            else if (chunkHeaderStart > 0) {
+                const chunkTail = chunk.slice(0, chunkHeaderStart);
+                const chunkData = chunkTail.slice(0, chunkTail.lastIndexOf(EOL));
                 this.file.push(chunkData);
             }
             else {
-                const chunkData = chunk.slice(chunkHeaderEnd + EOL.length + EOL.length, chunk.length);
-                console.log('pushing to file readable (2)');
-                this.file.push(chunkData);
+                this.file.push(chunk);
             }
-        }
-        else if (chunkHeaderStart > 0) {
-            const chunkTail = chunk.slice(0, chunkHeaderStart);
-            const chunkData = chunkTail.slice(0, chunkTail.lastIndexOf(EOL));
-            console.log('pushing to file readable (3)');
-            this.file.push(chunkData);
-        }
-        else {
-            console.log('pushing to file readable (4)');
-            this.file.push(chunk);
-        }
         
-        
-        //this.file.push(chunk);
+            //debugger;
+            if (!this.isFileEventEmitted) {
+                let fieldname1 = 'This field is really not used here.';
+                this.emit('file', fieldname1, this.file, this.fileName, this.contentType);
+                this.isFileEventEmitted = true;
+                this.file.resume();
+            }
 
-        let fieldname1 = 'fieldname1';
-        let filename = 'filename';
-        let contentType = 'contentType';
-        this.emit('file', fieldname1, this.file, filename, contentType);
-
-        // let fieldname2 = 'fieldname2';
-        // let value = 'value';
-        // this.emit('field', fieldname2, value);
-
-        //this.emit('finish');
+        } else if (this.headers['content-type'] && this.headers['content-type'].toLowerCase().startsWith('application/x-www-form-urlencoded')) { 
+            //debugger;
+            const content = chunk.toString().split('&');
+            content.forEach(c => {
+                const field = c.split('=');
+                this.emit('field', field[0], field[1]);
+            });
+            this.emit('finish');
+            
+        } else {
+            console.log('Unknown content type has arrived.');
+        }
 
         callback();        
     }
 
     _final(callback) {
-        debugger;
-        
+        //debugger;
         //this.file.push(null);
         callback();
     }
 
+    parseChunkHeaders(data) {
+        //console.log('Parsing headers...');
+        //debugger;
+        let dataArray = data.split(EOL);
+        
+        dataArray.forEach(line => {
+            //console.log(line);
+            const oneHeader = line.split(':');
+            if (oneHeader.length === 2) {
+                if (oneHeader[0].toLowerCase() === 'content-type') {
+                    this.contentType = oneHeader[1].trim().toLowerCase();
+                }
+                if (oneHeader[0].toLowerCase() == 'content-disposition') {
+                    let cd = oneHeader[1].trim().split(';');
+                    cd.forEach(p => {
+                        if (p.trim().startsWith('filename')) {
+                            this.fileName = p.trim().split('=')[1];
+                            this.fileName = this.fileName.substring(1, this.fileName.length-1);
+                        }
+                    });
+                }
+            }
+        });
+    }
 }
 
 module.exports = Parser;
